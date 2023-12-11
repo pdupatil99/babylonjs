@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+
+        <title>Babylon.js sample code</title>
+
+        <!-- Babylon.js -->
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/dat-gui/0.6.2/dat.gui.min.js"></script>
+        <script src="https://assets.babylonjs.com/generated/Assets.js"></script>
+        <script src="https://cdn.babylonjs.com/recast.js"></script>
+        <script src="https://cdn.babylonjs.com/ammo.js"></script>
+        <script src="https://cdn.babylonjs.com/havok/HavokPhysics_umd.js"></script>
+        <script src="https://cdn.babylonjs.com/cannon.js"></script>
+        <script src="https://cdn.babylonjs.com/Oimo.js"></script>
+        <script src="https://cdn.babylonjs.com/earcut.min.js"></script>
+        <script src="https://cdn.babylonjs.com/babylon.js"></script>
+        <script src="https://cdn.babylonjs.com/materialsLibrary/babylonjs.materials.min.js"></script>
+        <script src="https://cdn.babylonjs.com/proceduralTexturesLibrary/babylonjs.proceduralTextures.min.js"></script>
+        <script src="https://cdn.babylonjs.com/postProcessesLibrary/babylonjs.postProcess.min.js"></script>
+        <script src="https://cdn.babylonjs.com/loaders/babylonjs.loaders.js"></script>
+        <script src="https://cdn.babylonjs.com/serializers/babylonjs.serializers.min.js"></script>
+        <script src="https://cdn.babylonjs.com/gui/babylon.gui.min.js"></script>
+        <script src="https://cdn.babylonjs.com/inspector/babylon.inspector.bundle.js"></script>
+
+        <style>
+            html, body {
+                overflow: hidden;
+                width: 100%;
+                height: 100%;
+                margin: 0;
+                padding: 0;
+            }
+
+            #renderCanvas {
+                width: 100%;
+                height: 100%;
+                touch-action: none;
+            }
+            
+            #canvasZone {
+                width: 100%;
+                height: 100%;
+            }
+        </style>
+    </head>
+<body>
+    <div id="canvasZone"><canvas id="renderCanvas"></canvas></div>
+    <script>
+        var canvas = document.getElementById("renderCanvas");
+
+        var startRenderLoop = function (engine, canvas) {
+            engine.runRenderLoop(function () {
+                if (sceneToRender && sceneToRender.activeCamera) {
+                    sceneToRender.render();
+                }
+            });
+        }
+
+        var engine = null;
+        var scene = null;
+        var sceneToRender = null;
+        var createDefaultEngine = function() { return new BABYLON.Engine(canvas, true, { preserveDrawingBuffer: true, stencil: true,  disableWebGL2Support: false}); };
+        var createScene = function () {
+    // This creates a basic Babylon Scene object (non-mesh)
+    var scene = new BABYLON.Scene(engine);
+
+    var camera = new BABYLON.ArcRotateCamera("camera", -Math.PI / 2, Math.PI / 2, 5, new BABYLON.Vector3(0, 0, 0), scene);
+    camera.attachControl(canvas, true);
+
+    // Set camera position and target
+    camera.position = new BABYLON.Vector3(0, 10, 0);
+    camera.target = new BABYLON.Vector3(0, 0, 0);
+
+    // This creates a light
+    var light = new BABYLON.HemisphericLight("light", new BABYLON.Vector3(0, 1, 0), scene);
+
+    // Default intensity is 1. Let's dim the light a small amount
+    light.intensity = 0.7;
+
+    // Create a grid material
+    var material = new BABYLON.GridMaterial("grid", scene);
+
+    // Our built-in 'ground' shape.
+    var ground = BABYLON.MeshBuilder.CreateGround('ground', { width: window.innerWidth / 150, height: 5}, scene);
+    
+    // Affect a material
+    ground.material = material;
+    
+    var pointsList = [];
+    var shapecompleted = false;
+    var advancedTexture = BABYLON.GUI.AdvancedDynamicTexture.CreateFullscreenUI("UI");
+        
+    var Drawbutton = BABYLON.GUI.Button.CreateSimpleButton("DrawButton", "Draw");
+    Drawbutton.width = "100px"
+    Drawbutton.height = "40px";
+    Drawbutton.color = "white";
+    Drawbutton.cornerRadius = 10;
+    Drawbutton.background = "green";
+    Drawbutton.top = "-300px";
+    Drawbutton.left = "-300px";
+
+    var ExtrudeButton = BABYLON.GUI.Button.CreateSimpleButton("ExtrudeButton", "Extrude");
+    ExtrudeButton.width = "100px"
+    ExtrudeButton.height = "40px";
+    ExtrudeButton.color = "white";
+    ExtrudeButton.cornerRadius = 10;
+    ExtrudeButton.background = "Blue";
+    ExtrudeButton.top = "-300px";
+    ExtrudeButton.left = "-200px";
+    // Disable the button
+    ExtrudeButton.isEnabled = false;
+
+    var MoveButton = BABYLON.GUI.Button.CreateSimpleButton("MoveButton", "Move");
+    MoveButton.width = "100px"
+    MoveButton.height = "40px";
+    MoveButton.color = "white";
+    MoveButton.cornerRadius = 10;
+    MoveButton.background = "Red";
+    MoveButton.top = "-300px";
+    MoveButton.left = "-100px";
+    // Disable the button
+    MoveButton.isEnabled = false;
+
+    var VEditButton = BABYLON.GUI.Button.CreateSimpleButton("VEditButton", "Vertex Edit");
+    VEditButton.width = "100px"
+    VEditButton.height = "40px";
+    VEditButton.color = "white";
+    VEditButton.cornerRadius = 10;
+    VEditButton.background = "yellow";
+    VEditButton.top = "-300px";
+    VEditButton.left = "0px";
+    // Disable the button
+    VEditButton.isEnabled = false;
+
+    Drawbutton.onPointerUpObservable.add(function() {
+        camera.setTarget(BABYLON.Vector3.Zero());
+        camera.setPosition(new BABYLON.Vector3(0,10,0));
+        ground.actionManager = new BABYLON.ActionManager(scene);
+        if(shapecompleted==false) {
+            Drawbutton.textBlock.text = "Complete Drawing";
+            console.log(shapecompleted);
+            ground.setEnabled(true);
+            shapecompleted = true;
+            ground.actionManager.registerAction(
+                new BABYLON.ExecuteCodeAction(BABYLON.ActionManager.OnLeftPickTrigger,
+                    function (evt) 
+                    {
+                        if (evt.meshUnderPointer) 
+                        {
+                            var p_info = scene.pick(scene.pointerX, scene.pointerY);
+                            var picketPt = p_info.pickedPoint;
+                            var sphere = BABYLON.MeshBuilder.CreateSphere("sphere", {diameter: 0.1, segments: 32, updatable: true}, scene);
+                            sphere.position = picketPt;
+                            console.log(picketPt);
+                            pointsList.push(picketPt);
+                            console.log(pointsList);
+                        }
+                    })
+            );
+        }
+        else
+        {
+            ground.actionManager.unregisterAction(this);
+            Drawbutton.textBlock.text = "Draw";
+            console.log(shapecompleted);
+            shapecompleted = false;
+            if (pointsList.length < 3) {
+                console.warn("Not enough points to form a polygon.");
+                return;
+            }
+            pointsList.push(pointsList[0]);
+            // Create a 2D polygon mesh
+            var polygon = new BABYLON.PolygonMeshBuilder("polygon", pointsList, scene);
+            polygon.build(true);
+            console.log(pointsList);
+            console.log(polygon);
+            const options = {
+                points: pointsList, 
+                updatable: true,
+            };
+
+            let lines = BABYLON.MeshBuilder.CreateLines("lines", options, scene);
+            // Disable the button
+            Drawbutton.isEnabled = false;
+            ExtrudeButton.isEnabled = true;
+        }
+
+        console.log(pointsList);
+    });
+
+    advancedTexture.addControl(Drawbutton);
+    var polygon3D;
+    ExtrudeButton.onPointerUpObservable.add(function() {
+        console.log(pointsList);
+        var height = 1;
+        polygon3D = BABYLON.MeshBuilder.ExtrudePolygon("polygon3D", {shape: pointsList, depth: height,sideOrientation: BABYLON.Mesh.DOUBLESIDE}, scene);
+        polygon3D.position.y = height;
+
+        // Create a material with a specific color
+        var material = new BABYLON.StandardMaterial("materialName", scene);
+        material.diffuseColor = new BABYLON.Color3(0, 0, 1); // Set RGB values for red color
+
+        // Apply the material to the mesh
+        polygon3D.material = material;
+        console.log(polygon3D);
+        Drawbutton.isEnabled = false;
+        ExtrudeButton.isEnabled = false;
+        MoveButton.isEnabled = true;
+        VEditButton.isEnabled = true;
+    });
+    advancedTexture.addControl(ExtrudeButton);
+
+    var pointerDragBehavior;
+    var moveButtonClicked = false; 
+    var enablePointerFunctionality = true;
+    MoveButton.onPointerUpObservable.add(function() {
+        enablePointerFunctionality = false;
+        
+        pointerDragBehavior = new BABYLON.PointerDragBehavior({dragPlaneNormal: new BABYLON.Vector3(0,1,0)});
+    
+        // Use drag plane in world space
+        pointerDragBehavior.useObjectOrientationForDragging = false;
+
+        // Listen to drag events
+        pointerDragBehavior.onDragStartObservable.add((event)=>{
+            console.log("dragStart");
+            console.log(event);
+        })
+        pointerDragBehavior.onDragObservable.add((event)=>{
+            console.log("drag");
+            console.log(event);
+        })
+        pointerDragBehavior.onDragEndObservable.add((event)=>{
+            console.log("dragEnd");
+            console.log(event);
+        })
+        moveButtonClicked = true;
+        polygon3D.addBehavior(pointerDragBehavior);
+        VEditButton.isEnabled = true;
+    });
+    advancedTexture.addControl(MoveButton);
+    
+    VEditButton.onPointerUpObservable.add((pointerInfo) => {
+        if(moveButtonClicked==true) {
+            pointerDragBehavior.detach();
+            moveButtonClicked=false;
+        }
+        enablePointerFunctionality = true;
+        var startingPoint;
+
+        var pointerDown = function () {
+            var positions = polygon3D.getVerticesData(BABYLON.VertexBuffer.PositionKind);
+            console.log(positions);
+            console.log(polygon3D);
+                    
+            if(!polygon3D){return;}
+            var piv = polygon3D.getPivotPoint();
+            if(!positions){return;}
+            var numberOfPoints = positions.length / 3;
+            var map = [];
+            var poLoc = [];
+            var poGlob = [];
+            for (var i = 0; i < numberOfPoints; i++) {
+                var p = new BABYLON.Vector3(positions[i * 3], positions[i * 3 + 1], positions[i * 3 + 2]);
+                var found = false;
+                for (var index = 0; index < map.length && !found; index++) {
+                    var array = map[index];
+                    var p0 = array[0];
+                    if (p0.equals(p) || (p0.subtract(p)).lengthSquared() < 0.01) {
+                        found = true;
+                    }
+                }
+                if (!found) {
+                    var array = [];
+                    poLoc.push(p.subtract(piv));
+                    poGlob.push(BABYLON.Vector3.TransformCoordinates(p, polygon3D.getWorldMatrix()));
+                    array.push(p);
+                    map.push(array);
+                }
+            }
+            console.log(" pointerDown map: ", map);
+            console.log("pointerDown poLoc: ", poLoc);
+            console.log("pointerDown poGlob: ", poGlob);
+            p_info = scene.pick(scene.pointerX, scene.pointerY);
+            console.log("pointerDown p_info: ",p_info);
+            var picketPt = p_info.pickedPoint;
+                    
+            console.log(" pointerDown picketPt: ",picketPt);
+                    
+            var index = 0;
+            var i = 0;
+            console.log(" pointerDown poGlob.length : ",poGlob.length);
+            var mnvalue = Number.MAX_SAFE_INTEGER;
+            for (; i < poLoc.length; i++) 
+            {  
+                var value = Math.sqrt(Math.pow(Math.abs(picketPt.x - poLoc[i].x), 2) + Math.pow(Math.abs(picketPt.y - poLoc[i].y), 2)+ Math.pow(Math.abs(picketPt.z - poLoc[i].z), 2));
+                if(value<mnvalue) {
+                    mnvalue = value;
+                    index = i;
+                }
+            }
+            console.log(" pointerDown index: ",index);
+            console.log(" pointerDown poLoc[index]: ",poLoc[index]);
+            startingPoint = p_info;           
+           
+
+            p_info.pickedPoint.x = poLoc[index].x;
+            p_info.pickedPoint.y = poLoc[index].y;
+            p_info.pickedPoint.z = poLoc[index].z;
+            
+            console.log("in pointerDown p_info: ",p_info);
+            console.log("in pointerDown poLoc[index]: ",poLoc[index]);
+           
+            if (startingPoint) { // we need to disconnect camera from canvas
+                setTimeout(function () {
+                    camera.detachControl(canvas);
+                }, 0);
+            }
+        }
+
+        var pointerUp = function () {
+            console.log("in pointerUp");
+            if (startingPoint) {
+                
+                console.log("in pointerUp in if");
+                camera.attachControl(canvas, true);
+                startingPoint = null;
+                return;
+            }
+        }
+
+        var pointerMove = function () {
+            if (!startingPoint) {
+                return;
+            }
+
+            var endingPoint = scene.pick(scene.pointerX, scene.pointerY);
+            if(!endingPoint.hit) {
+                return;
+            }
+            console.log("in pointerMove startingPoint: ",startingPoint);
+            console.log("in pointerMove endingPoint: ",endingPoint);
+            if (endingPoint) {
+                dragDistance = Math.sqrt(Math.pow(Math.abs(endingPoint.pickedPoint.x - startingPoint.pickedPoint.x), 2) +Math.pow(Math.abs(endingPoint.pickedPoint.y - startingPoint.pickedPoint.y), 2)+ Math.pow(Math.abs(endingPoint.pickedPoint.z - startingPoint.pickedPoint.z), 2));
+                console.log("in pointerMove dragDistance: ",dragDistance);
+            }
+
+            console.log("in pointerMove dragDistance: ",dragDistance);
+                
+            // statics
+            let maxDist = 1; // max picking distance
+            let editAxis = "y"; // axis to edit
+            let editAmount;
+            editAmount = dragDistance*0.2;
+
+            console.log("in pointerMove editAmount: ",editAmount);
+
+            // Fetch data
+            let mesh = p_info.pickedMesh; // picked mesh
+            let indices = mesh.getIndices(); // indices
+            let positions = mesh.getVerticesData('position'); // positions data
+            let tempPosition = BABYLON.Vector3.Zero(); // temporary vector3 for positions data
+            let tempAlreadyEdited = [];
+
+            // Update data
+            for (let i = 0; i < indices.length; i++) { // Assuming non-indexed vertices
+                let index1 = indices[i] * 3; // Use only the first vertex of each triangle
+                if (tempAlreadyEdited[index1]) {
+                    continue;
+                }
+                tempAlreadyEdited[index1] = true;
+                tempPosition.fromArray(positions, index1);
+                let dist = BABYLON.Vector3.Distance(tempPosition, p_info.pickedPoint);
+
+                if (dist <= maxDist) {
+                let lerpedAmount = BABYLON.Scalar.Lerp(editAmount, 0, dist / maxDist);
+                    tempPosition[editAxis] += lerpedAmount;
+                }
+                tempPosition.toArray(positions, index1);
+            }
+
+            // Set data
+            mesh.setVerticesData('position', positions);
+        }
+        
+        scene.onPointerObservable.add((pointerInfo) => {
+            if(enablePointerFunctionality) {	
+                switch (pointerInfo.type) {
+                    case BABYLON.PointerEventTypes.POINTERDOWN:
+                            pointerDown();
+                        break;
+                    case BABYLON.PointerEventTypes.POINTERUP:
+                            pointerUp();
+                        break;
+                    case BABYLON.PointerEventTypes.POINTERMOVE:          
+                            pointerMove();
+                        break;
+                }
+            }
+        });
+         
+       VEditButton.isEnabled = true;
+       
+    });
+    advancedTexture.addControl(VEditButton);
+
+
+    return scene;
+};
+                window.initFunction = async function() {
+                    
+                    
+                    
+                    var asyncEngineCreation = async function() {
+                        try {
+                        return createDefaultEngine();
+                        } catch(e) {
+                        console.log("the available createEngine function failed. Creating the default engine instead");
+                        return createDefaultEngine();
+                        }
+                    }
+
+                    window.engine = await asyncEngineCreation();
+        if (!engine) throw 'engine should not be null.';
+        startRenderLoop(engine, canvas);
+        window.scene = createScene();};
+        initFunction().then(() => {sceneToRender = scene                    
+        });
+
+        // Resize
+        window.addEventListener("resize", function () {
+            engine.resize();
+        });
+    </script>
+</body>
+</html>
